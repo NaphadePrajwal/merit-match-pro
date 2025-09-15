@@ -65,8 +65,9 @@ const Index = () => {
       <RecommendationEngine 
         userProfile={userProfile}
         language={selectedLanguage}
-        onViewSkillGap={() => setCurrentStep('skills')}
-        onOpenChat={() => setCurrentStep('chat')}
+        onBack={() => setCurrentStep('landing')}
+        onNavigateToSkills={() => setCurrentStep('skills')}
+        onNavigateToChat={() => setCurrentStep('chat')}
       />
     );
   }

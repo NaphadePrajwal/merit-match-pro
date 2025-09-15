@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Upload, Mic, User, GraduationCap, MapPin, Briefcase } from "lucide-react";
+import VoiceInput from "./VoiceInput";
 import { toast } from "@/hooks/use-toast";
 
 interface ProfileBuilderProps {
@@ -324,9 +325,38 @@ const ProfileBuilder = ({ language, onComplete, onBack }: ProfileBuilderProps) =
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 p-4 bg-accent rounded-lg">
-          <Mic className="w-5 h-5 text-primary" />
-          <span className="text-sm">Voice input available for adding custom skills</span>
+        <div className="p-4 bg-accent rounded-lg">
+          <div className="flex items-center space-x-2 mb-3">
+            <Mic className="w-5 h-5 text-primary" />
+            <span className="text-sm font-medium">Voice Input for Skills & Interests</span>
+          </div>
+          <VoiceInput 
+            onTranscript={(text) => {
+              // Add to skills and interests based on content
+              const words = text.split(',').map(w => w.trim()).filter(w => w);
+              const newSkills = words.filter(word => 
+                skillSuggestions.some(skill => 
+                  skill.toLowerCase().includes(word.toLowerCase()) || 
+                  word.toLowerCase().includes(skill.toLowerCase())
+                ) && !profile.skills.includes(word)
+              );
+              const newInterests = words.filter(word => 
+                interestAreas.some(interest => 
+                  interest.toLowerCase().includes(word.toLowerCase()) ||
+                  word.toLowerCase().includes(interest.toLowerCase())
+                ) && !profile.interests.includes(word)
+              );
+              
+              setProfile(prev => ({
+                ...prev,
+                skills: [...prev.skills, ...newSkills],
+                interests: [...prev.interests, ...newInterests]
+              }));
+            }}
+            language={language}
+            placeholder="Say your skills and interests separated by commas..."
+            className="w-full"
+          />
         </div>
       </CardContent>
     </Card>

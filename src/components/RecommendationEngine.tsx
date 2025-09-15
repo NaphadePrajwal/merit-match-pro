@@ -3,13 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, MapPin, Clock, Users, Star, ExternalLink, TrendingUp, MessageCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Users, Star, ExternalLink, TrendingUp, MessageCircle, Volume2 } from "lucide-react";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 
 interface RecommendationEngineProps {
   userProfile: any;
   language: string;
-  onViewSkillGap: () => void;
-  onOpenChat: () => void;
+  onBack: () => void;
+  onNavigateToSkills: () => void;
+  onNavigateToChat: () => void;
 }
 
 const mockInternships = [
@@ -85,9 +87,10 @@ const mockInternships = [
   }
 ];
 
-const RecommendationEngine = ({ userProfile, language, onViewSkillGap, onOpenChat }: RecommendationEngineProps) => {
+const RecommendationEngine = ({ userProfile, language, onBack, onNavigateToSkills, onNavigateToChat }: RecommendationEngineProps) => {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { speak } = useTextToSpeech();
 
   useEffect(() => {
     // Simulate AI recommendation engine
@@ -171,7 +174,7 @@ const RecommendationEngine = ({ userProfile, language, onViewSkillGap, onOpenCha
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
-            <Button variant="ghost" onClick={() => window.history.back()} className="mr-4">
+            <Button variant="ghost" onClick={onBack} className="mr-4">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -183,11 +186,11 @@ const RecommendationEngine = ({ userProfile, language, onViewSkillGap, onOpenCha
             </div>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={onViewSkillGap}>
+            <Button variant="outline" onClick={onNavigateToSkills}>
               <TrendingUp className="w-4 h-4 mr-2" />
               Skill Gap
             </Button>
-            <Button variant="outline" onClick={onOpenChat}>
+            <Button variant="outline" onClick={onNavigateToChat}>
               <MessageCircle className="w-4 h-4 mr-2" />
               Ask AI
             </Button>
@@ -231,7 +234,15 @@ const RecommendationEngine = ({ userProfile, language, onViewSkillGap, onOpenCha
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <CardTitle className="text-xl">{internship.title}</CardTitle>
-                      {index === 0 && <Badge className="bg-success">🏆 Best Match</Badge>}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => speak(`${internship.title} at ${internship.company}. ${internship.description}`, language)}
+                      >
+                        <Volume2 className="w-3 h-3" />
+                      </Button>
+                      {index === 0 && <Badge className="bg-gradient-to-r from-primary to-primary-glow text-primary-foreground">🏆 Best Match</Badge>}
                     </div>
                     <p className="text-lg font-medium text-primary">{internship.company}</p>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-2">
@@ -293,7 +304,23 @@ const RecommendationEngine = ({ userProfile, language, onViewSkillGap, onOpenCha
                 {/* Badges */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {internship.badges.map((badge: string) => (
-                    <Badge key={badge} className={getBadgeColor(badge)}>
+                    <Badge 
+                      key={badge} 
+                      className={`${
+                        badge.includes('Top Match') ? 'bg-gradient-to-r from-primary to-primary-glow text-primary-foreground' :
+                        badge.includes('High Stipend') ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white' :
+                        badge.includes('Nearby') ? 'bg-success text-success-foreground' :
+                        badge.includes('Tech Heavy') ? 'bg-purple-500 text-white' :
+                        badge.includes('Creative') ? 'bg-pink-500 text-white' :
+                        'bg-accent'
+                      }`}
+                    >
+                      {badge.includes('Top Match') && '🏆 '}
+                      {badge.includes('High Stipend') && '💰 '}
+                      {badge.includes('Nearby') && '📍 '}
+                      {badge.includes('Tech Heavy') && '💻 '}
+                      {badge.includes('Creative') && '🎨 '}
+                      {badge.includes('Growth') && '📈 '}
                       {badge}
                     </Badge>
                   ))}
@@ -336,7 +363,7 @@ const RecommendationEngine = ({ userProfile, language, onViewSkillGap, onOpenCha
               <p className="text-muted-foreground mb-4">
                 Discover what skills you need to unlock even better opportunities
               </p>
-              <Button onClick={onViewSkillGap} className="bg-success">
+              <Button onClick={onNavigateToSkills} className="bg-success hover:bg-success/90">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 View Skill Gap Analysis
               </Button>
@@ -349,7 +376,7 @@ const RecommendationEngine = ({ userProfile, language, onViewSkillGap, onOpenCha
               <p className="text-muted-foreground mb-4">
                 Chat with our AI career guide for personalized advice
               </p>
-              <Button onClick={onOpenChat} variant="outline" className="border-primary">
+              <Button onClick={onNavigateToChat} variant="outline" className="border-primary hover:bg-primary/10">
                 <MessageCircle className="w-4 h-4 mr-2" />
                 Chat with AI Guide
               </Button>

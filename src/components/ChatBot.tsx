@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, Mic, Bot, User, Lightbulb, FileText, MapPin } from "lucide-react";
+import { ArrowLeft, Send, Mic, Bot, User, Lightbulb, FileText, MapPin, Volume2 } from "lucide-react";
+import VoiceInput from "./VoiceInput";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 
 interface ChatBotProps {
   language: string;
@@ -31,6 +33,7 @@ const ChatBot = ({ language, userProfile, onBack }: ChatBotProps) => {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { speak, isSpeaking } = useTextToSpeech();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -191,12 +194,24 @@ const ChatBot = ({ language, userProfile, onBack }: ChatBotProps) => {
                     {message.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                   </div>
                   
-                  <div className={`rounded-lg p-4 ${
-                    message.sender === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-accent'
-                  }`}>
-                    <p className="whitespace-pre-line">{message.text}</p>
+                   <div className={`rounded-lg p-4 ${
+                     message.sender === 'user'
+                       ? 'bg-primary text-primary-foreground'
+                       : 'bg-accent'
+                   }`}>
+                     <div className="flex items-start justify-between">
+                       <p className="whitespace-pre-line flex-1">{message.text}</p>
+                       {message.sender === 'bot' && (
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           className="ml-2 h-6 w-6"
+                           onClick={() => speak(message.text, language)}
+                         >
+                           <Volume2 className="w-3 h-3" />
+                         </Button>
+                       )}
+                     </div>
                     
                     {message.suggestions && (
                       <div className="flex flex-wrap gap-2 mt-3">
@@ -267,9 +282,19 @@ const ChatBot = ({ language, userProfile, onBack }: ChatBotProps) => {
                 placeholder="Ask me anything about internships and careers..."
                 className="flex-1"
               />
-              <Button variant="outline" size="icon">
-                <Mic className="w-4 h-4" />
-              </Button>
+              <VoiceInput 
+                onTranscript={(text) => {
+                  setInputText(text);
+                  // Auto-send after voice input
+                  setTimeout(() => {
+                    if (text.trim()) {
+                      handleSendMessage();
+                    }
+                  }, 500);
+                }}
+                language={language}
+                placeholder="Ask me anything..."
+              />
               <Button onClick={handleSendMessage} disabled={!inputText.trim()}>
                 <Send className="w-4 h-4" />
               </Button>
