@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Users, Brain, BookOpen, MapPin, MessageCircle } from "lucide-react";
+import { Mic, Users, Brain, BookOpen, MapPin, MessageCircle, BarChart, Search } from "lucide-react";
 import LanguageSelector from "@/components/LanguageSelector";
 import ProfileBuilder from "@/components/ProfileBuilder";
 import RecommendationEngine from "@/components/RecommendationEngine";
 import SkillGapAnalysis from "@/components/SkillGapAnalysis";
 import ChatBot from "@/components/ChatBot";
+import InternshipBrowser from "@/components/InternshipBrowser";
+import GovernmentDashboard from "@/components/GovernmentDashboard";
 
 const Index = () => {
-  const [currentStep, setCurrentStep] = useState<'landing' | 'profile' | 'recommendations' | 'skills' | 'chat'>('landing');
+  const [currentStep, setCurrentStep] = useState<'landing' | 'browse' | 'profile' | 'recommendations' | 'skills' | 'chat' | 'dashboard'>('landing');
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [userProfile, setUserProfile] = useState(null);
 
@@ -87,7 +89,24 @@ const Index = () => {
       <ChatBot 
         language={selectedLanguage}
         userProfile={userProfile}
-        onBack={() => setCurrentStep('recommendations')}
+        onBack={() => setCurrentStep(userProfile ? 'recommendations' : 'landing')}
+      />
+    );
+  }
+
+  if (currentStep === 'browse') {
+    return (
+      <InternshipBrowser 
+        onBack={() => setCurrentStep('landing')}
+        onBuildProfile={() => setCurrentStep('profile')}
+      />
+    );
+  }
+
+  if (currentStep === 'dashboard') {
+    return (
+      <GovernmentDashboard 
+        onBack={() => setCurrentStep('landing')}
       />
     );
   }
@@ -136,11 +155,23 @@ const Index = () => {
             <Button 
               size="lg" 
               className="bg-gradient-to-r from-primary to-primary-glow hover:from-primary/90 hover:to-primary-glow/90 text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
+              onClick={() => setCurrentStep('browse')}
+            >
+              <Search className="w-5 h-5 mr-2" />
+              Browse All Internships
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg"
+              className="text-lg px-8 py-6 rounded-xl border-2 hover:bg-accent"
               onClick={() => setCurrentStep('profile')}
             >
               <Brain className="w-5 h-5 mr-2" />
-              Start Profile
+              Get Personalized Matches
             </Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button 
               variant="outline" 
               size="lg"
@@ -149,6 +180,15 @@ const Index = () => {
             >
               <MessageCircle className="w-5 h-5 mr-2" />
               Ask AI Guide
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg"
+              className="text-lg px-8 py-6 rounded-xl border-2 hover:bg-accent"
+              onClick={() => setCurrentStep('dashboard')}
+            >
+              <BarChart className="w-5 h-5 mr-2" />
+              Government Dashboard
             </Button>
           </div>
 

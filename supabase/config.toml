@@ -1,1 +1,10 @@
 project_id = "tgdnjgmvvofnkdkpykuy"
+
+[functions.ml-resume-analysis]
+verify_jwt = false
+
+[functions.ai-career-guide]
+verify_jwt = false
+
+[functions.update-analytics]
+verify_jwt = false

@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, MapPin, Clock, Users, Star, ExternalLink, TrendingUp, MessageCircle, Volume2 } from "lucide-react";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface RecommendationEngineProps {
   userProfile: any;
@@ -93,49 +95,129 @@ const RecommendationEngine = ({ userProfile, language, onBack, onNavigateToSkill
   const { speak } = useTextToSpeech();
 
   useEffect(() => {
-    // Simulate AI recommendation engine
+    fetchInternshipsAndAnalyze();
+  }, [userProfile]);
+
+  const fetchInternshipsAndAnalyze = async () => {
     setLoading(true);
-    setTimeout(() => {
-      // Simple matching algorithm based on skills and interests
-      const scored = mockInternships.map(internship => {
-        let score = 0;
-        const userSkills = userProfile?.skills || [];
-        const userInterests = userProfile?.interests || [];
-        
-        // Skill matching
-        internship.skills.forEach(skill => {
-          if (userSkills.includes(skill)) {
-            score += 30;
-          }
-        });
-        
-        // Interest matching
-        userInterests.forEach(interest => {
-          if (internship.title.toLowerCase().includes(interest.toLowerCase()) ||
-              internship.description.toLowerCase().includes(interest.toLowerCase())) {
-            score += 20;
-          }
-        });
-        
-        // Location preference (mock)
-        if (userProfile?.location && internship.location.includes(userProfile.location)) {
-          score += 15;
+    try {
+      // Fetch internships from database
+      const { data: internships, error } = await supabase
+        .from('internships')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!internships || internships.length === 0) {
+        setRecommendations([]);
+        setLoading(false);
+        return;
+      }
+
+      // Use ML-powered analysis for each internship
+      const analysisPromises = internships.map(async (internship) => {
+        try {
+          const { data: mlAnalysis } = await supabase.functions.invoke('ml-resume-analysis', {
+            body: {
+              resumeText: userProfile?.experience || `Skills: ${userProfile?.skills?.join(', ')}. Interests: ${userProfile?.interests?.join(', ')}. Education: ${userProfile?.education} from ${userProfile?.institute}`,
+              requiredSkills: internship.required_skills || [],
+              preferredSkills: internship.preferred_skills || [],
+              internshipDescription: internship.description
+            }
+          });
+
+          const matchScore = mlAnalysis?.analysis?.overall_match_score || 
+            calculateFallbackScore(internship, userProfile);
+
+          return {
+            ...internship,
+            matchScore,
+            mlAnalysis: mlAnalysis?.analysis,
+            stipend: `₹${(internship.stipend / 1000).toFixed(0)}K/month`,
+            skills: [...(internship.required_skills || []), ...(internship.preferred_skills || [])],
+            badges: generateBadges(internship, matchScore)
+          };
+        } catch (error) {
+          console.error('ML analysis error for internship:', internship.id, error);
+          // Fallback to simple matching
+          const matchScore = calculateFallbackScore(internship, userProfile);
+          return {
+            ...internship,
+            matchScore,
+            stipend: `₹${(internship.stipend / 1000).toFixed(0)}K/month`,
+            skills: [...(internship.required_skills || []), ...(internship.preferred_skills || [])],
+            badges: generateBadges(internship, matchScore)
+          };
         }
-        
-        return {
-          ...internship,
-          matchScore: Math.min(Math.max(score, 60), 95) + Math.random() * 10
-        };
       });
+
+      const analyzedInternships = await Promise.all(analysisPromises);
       
-      const sortedRecommendations = scored
+      const sortedRecommendations = analyzedInternships
         .sort((a, b) => b.matchScore - a.matchScore)
         .slice(0, 5);
       
       setRecommendations(sortedRecommendations);
+      
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load recommendations. Using fallback data.",
+        variant: "destructive",
+      });
+      // Fallback to mock data
+      const fallbackRecommendations = mockInternships.map(internship => ({
+        ...internship,
+        matchScore: Math.floor(Math.random() * 40) + 60
+      })).slice(0, 5);
+      setRecommendations(fallbackRecommendations);
+    } finally {
       setLoading(false);
-    }, 2000);
-  }, [userProfile]);
+    }
+  };
+
+  const calculateFallbackScore = (internship: any, profile: any) => {
+    let score = 60; // Base score
+    const userSkills = profile?.skills || [];
+    const userInterests = profile?.interests || [];
+    
+    // Skill matching (40 points max)
+    const requiredSkills = internship.required_skills || [];
+    const preferredSkills = internship.preferred_skills || [];
+    const allSkills = [...requiredSkills, ...preferredSkills];
+    
+    const matchedSkills = userSkills.filter(skill => 
+      allSkills.some(reqSkill => reqSkill.toLowerCase().includes(skill.toLowerCase()))
+    );
+    score += (matchedSkills.length / Math.max(allSkills.length, 1)) * 30;
+    
+    // Interest matching (20 points max)
+    const interestMatch = userInterests.some(interest => 
+      internship.title.toLowerCase().includes(interest.toLowerCase()) ||
+      internship.description.toLowerCase().includes(interest.toLowerCase())
+    );
+    if (interestMatch) score += 15;
+    
+    // Location preference (10 points max)
+    if (profile?.location && internship.location.toLowerCase().includes(profile.location.toLowerCase())) {
+      score += 10;
+    }
+    
+    return Math.min(Math.max(score, 60), 95);
+  };
+
+  const generateBadges = (internship: any, matchScore: number) => {
+    const badges = [];
+    if (matchScore >= 90) badges.push("Top Match");
+    if (internship.stipend >= 25000) badges.push("High Stipend");
+    if (internship.type === "remote") badges.push("Remote");
+    if (internship.difficulty_level === "beginner") badges.push("Beginner Friendly");
+    if (internship.category === "tech") badges.push("Tech Heavy");
+    return badges;
+  };
 
   const getBadgeColor = (badge: string) => {
     switch (badge) {

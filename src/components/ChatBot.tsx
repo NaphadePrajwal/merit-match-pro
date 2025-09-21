@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Send, Mic, Bot, User, Lightbulb, FileText, MapPin, Volume2 } from "lucide-react";
 import VoiceInput from "./VoiceInput";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatBotProps {
   language: string;
@@ -60,7 +61,24 @@ const ChatBot = ({ language, userProfile, onBack }: ChatBotProps) => {
     setMessages([welcomeMessage]);
   }, [userProfile]);
 
-  const getBotResponse = (userInput: string): string => {
+  const getBotResponse = async (userInput: string): Promise<string> => {
+    try {
+      const { data } = await supabase.functions.invoke('ai-career-guide', {
+        body: {
+          message: userInput,
+          userProfile,
+          context: "PM Internship Scheme career guidance"
+        }
+      });
+
+      if (data?.guidance) {
+        return data.guidance;
+      }
+    } catch (error) {
+      console.error('AI guidance error:', error);
+    }
+
+    // Fallback responses
     const input = userInput.toLowerCase();
     
     if (input.includes('internship') && input.includes('right')) {
@@ -75,28 +93,11 @@ const ChatBot = ({ language, userProfile, onBack }: ChatBotProps) => {
       return `Based on top internship requirements, I recommend focusing on:\n\n🎯 **High Priority:**\n• Python (Data Analysis)\n• SQL (Database skills)\n• Communication skills\n\n💡 **Growth Areas:**\n• Machine Learning basics\n• Project management\n• Industry-specific tools\n\nShall I create a personalized 30-day learning plan for you?`;
     }
     
-    if (input.includes('interview')) {
-      return `Interview preparation essentials:\n\n📋 **Technical Prep:**\n• Review your projects thoroughly\n• Practice coding problems (if tech role)\n• Understand the company's business\n\n🗣️ **Soft Skills:**\n• STAR method for behavioral questions\n• Prepare questions about the role\n• Practice explaining technical concepts simply\n\n💪 **Confidence Tips:**\n• Mock interviews with friends\n• Research the interviewer on LinkedIn\n• Prepare your "Tell me about yourself" story\n\nNeed help with specific interview questions?`;
-    }
-    
-    if (input.includes('location') || input.includes('near')) {
-      const location = userProfile?.location || 'your area';
-      return `For internships near ${location}:\n\n🏢 **Top Cities:**\n• Mumbai - Fintech, Consulting\n• Bangalore - Tech, Startups\n• Delhi NCR - Government, Policy\n• Pune - Manufacturing, IT\n\n🌐 **Remote Options:**\n• Many tech internships are remote-friendly\n• Digital marketing roles often flexible\n• Research positions can be hybrid\n\nWould you like specific company recommendations for ${location}?`;
-    }
-    
-    if (input.includes('salary') || input.includes('stipend')) {
-      return `Internship stipend ranges in India:\n\n💰 **By Field:**\n• Tech/Software: ₹15,000 - ₹40,000/month\n• Finance: ₹12,000 - ₹25,000/month\n• Marketing: ₹8,000 - ₹20,000/month\n• Research: ₹5,000 - ₹15,000/month\n\n📈 **Negotiation Tips:**\n• Highlight relevant skills/projects\n• Consider total value (learning + money)\n• Some startups offer equity/bonuses\n\nRemember, learning and networking value often matters more than stipend amount!`;
-    }
-    
-    if (input.includes('thank') || input.includes('thanks')) {
-      return `You're welcome! 😊 I'm here to help you succeed. Feel free to ask anything about:\n\n• Career guidance\n• Skill development\n• Interview preparation\n• Industry insights\n\nGood luck with your internship journey! 🚀`;
-    }
-    
     // Default response
-    return `That's a great question! While I'm still learning, I can help you with:\n\n🎯 **Career Guidance** - Which internships match your profile\n📚 **Skill Development** - What to learn next\n📝 **Application Tips** - Resume and interview prep\n🌍 **Location Advice** - Best cities for your field\n\nTry asking something specific like "What skills should I learn for data science?" or use one of the quick actions below!`;
+    return `That's a great question! I can help you with:\n\n🎯 **Career Guidance** - Which internships match your profile\n📚 **Skill Development** - What to learn next\n📝 **Application Tips** - Resume and interview prep\n🌍 **Location Advice** - Best cities for your field\n\nTry asking something specific like "What skills should I learn for data science?" or use one of the quick actions below!`;
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputText.trim() === "") return;
 
     const userMessage: Message = {
@@ -107,23 +108,33 @@ const ChatBot = ({ language, userProfile, onBack }: ChatBotProps) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputText;
     setInputText("");
     setIsTyping(true);
 
-    // Simulate typing delay
-    setTimeout(() => {
-      const botResponse = getBotResponse(inputText);
+    try {
+      const botResponse = await getBotResponse(currentInput);
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: botResponse,
         sender: 'bot',
         timestamp: new Date(),
-        suggestions: getBotSuggestions(inputText)
+        suggestions: getBotSuggestions(currentInput)
       };
       
       setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Error getting bot response:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm having trouble responding right now. Please try again in a moment.",
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const getBotSuggestions = (input: string): string[] => {
